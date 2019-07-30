@@ -92,6 +92,13 @@ img.thumbnail {
   margin-left: 5pt;
 }
 
+div.controls {
+  margin-top: 5pt;
+  display: flex; 
+  float: right;
+  clear: right;
+}
+
 div.busy {
   opacity:0.8;
   background-color:#ccc;
@@ -113,6 +120,11 @@ div.busy div:first-child {
 p.message {
   margin: 2pt;
   font-weight: bold;
+}
+
+.SUCCESS {
+  color: rgb(0, 155, 0);
+  background-color: rgb(189, 248, 189);
 }
 
 .INFO {

@@ -28,6 +28,9 @@ class settings:
 
   CONFIG_TXT = '/boot/config.txt'
 
+  CACHEFOLDER = '/root/cache/'
+
+
   DEPRECATED_USER = ['resolution']
   DEPRECATED_SYSTEM = ['colortemp-script']
 
@@ -40,6 +43,7 @@ class settings:
     settings.COLORMATCH = settings.COLORMATCH.replace('/root/', newbase)
     settings.DRV_BUILTIN = settings.DRV_BUILTIN.replace('/root/', newbase)
     settings.DRV_EXTERNAL = settings.DRV_EXTERNAL.replace('/root/', newbase)
+    settings.CACHEFOLDER = settings.CACHEFOLDER.replace('/root/', newbase)
 
   def __init__(self):
     self.settings = {
@@ -70,7 +74,8 @@ class settings:
       'display-driver' : 'none',
       'display-special' : None,
       'imagesizing' : 'blur',
-      'force_orientation' : 0
+      'force_orientation' : 0,
+      'randomize_images' : 1,
     }
 
   def load(self):
@@ -105,6 +110,9 @@ class settings:
         except:
           logging.exception('Failed to load settings.json, corrupt file?')
           return False
+      # make sure old settings.json files are still compatible and get updated with new keys
+      if "cachefolder" not in self.settings.keys():
+        self.settings["cachefolder"] = '/root/cache/'
       return True
     else:
       return False

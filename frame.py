@@ -44,6 +44,7 @@ from modules.colormatch import colormatch
 from modules.drivers import drivers
 from modules.servicemanager import ServiceManager
 from modules.sysconfig import sysconfig
+from modules.cachemanager import CacheManager
 
 parser = argparse.ArgumentParser(description="PhotoFrame - A RaspberryPi based digital photoframe", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--logfile', default=None, help="Log to file instead of stdout")
@@ -70,7 +71,7 @@ if cmdline.emulate:
 if cmdline.basedir is not None:
   newpath = cmdline.basedir + '/'
   logging.info('Altering basedir to %s', newpath)
-  settings().reassign(newpath)
+  settings().reassignBase(newpath)
 
 void = open(os.devnull, 'wb')
 
@@ -198,12 +199,21 @@ def debug_logfile(all=False):
     suffix = '(size of logfile %d bytes, created %s)' % (stats.st_size, datetime.datetime.fromtimestamp(stats.st_ctime).strftime('%c'))
     return (title, lines, suffix)
 
+
+def debug_version():
+    title = 'Running version'
+    lines = subprocess.check_output('git log HEAD~1..HEAD ; echo "" ; git status', shell=True)
+    if lines:
+      lines = lines.splitlines()
+    return (title, lines, None)
+
 @app.route('/debug', methods=['GET'])
 def show_logs():
   # Special URL, we simply try to extract latest 100 lines from syslog
   # and filter out frame messages. These are shown so the user can
   # add these to issues.
   report = []
+  report.append(debug_version())
   report.append(debug_logfile(False))
   report.append(debug_logfile(True))
   report.append(debug_stacktrace())
@@ -267,6 +277,7 @@ def cfg_keyvalue(key, value):
       settings.setUser('width',  width)
       settings.setUser('height', height)
       display.enable(True, True)
+      CacheManager.empty(settings.CACHEFOLDER)
     if key in ['display-on', 'display-off']:
       timekeeper.setConfiguration(settings.getUser('display-on'), settings.getUser('display-off'))
     if key in ['autooff-lux', 'autooff-time']:
@@ -276,6 +287,8 @@ def cfg_keyvalue(key, value):
     if key in ['shutdown-pin']:
       powermanagement.stopmonitor()
       powermanagement = shutdown(settings.getUser('shutdown-pin'))
+    if key in ['imagesizing', 'randomize_images']:
+      slideshow.createEvent("settingsChange")
     settings.save()
     return jsonify({'status':status})
 
@@ -332,6 +345,7 @@ def cfg_rotation(orient):
   else:
     if orient >= 0 and orient < 360:
       sysconfig.setDisplayOrientation(orient)
+      CacheManager.empty(settings.CACHEFOLDER)
       return jsonify({'rotation' : sysconfig.getDisplayOrientation()})
   abort(500)
 
@@ -359,6 +373,13 @@ def cfg_reset(cmd):
       return 'Update in process', 200
     else:
       return 'Cannot find update tool', 404
+  elif cmd == 'clearCache':
+    slideshow.createEvent("clearCache")
+    return jsonify({'clearCache': True})
+  elif cmd == 'forgetMemory':
+    slideshow.createEvent("memoryForget")
+    return jsonify({'forgetMemory': True})
+
 
 @app.route('/details/<about>')
 @auth.login_required
@@ -529,6 +550,13 @@ def services_operations(action):
       return jsonify(services.getServiceConfiguration(id))
 
   abort(500)
+
+@app.route('/control/<cmd>')
+@auth.login_required
+def control_slideshow(cmd):
+  slideshow.createEvent(cmd)
+  return jsonify({'control': True})
+
 
 settings = settings()
 drivers = drivers()
